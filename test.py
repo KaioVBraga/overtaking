@@ -83,17 +83,18 @@ def main():
 
     # === Drivers (two TORCS bots that use car1-trb1 class) ===
     drivers_sec = find_section(root, "Drivers")
-    set_attnum(drivers_sec, "specified", 1) # Ensure we use the specified drivers
-    set_driver(drivers_sec, 0, "bt")      # opponent 1
-    set_driver(drivers_sec, 1, "berniw")  # opponent 2
+    # --- THIS IS THE FIX ---
+    set_attnum(drivers_sec, "human", 0) # Explicitly set human players to zero
+    # -----------------------
+    set_attnum(drivers_sec, "specified", 1)
+    set_driver(drivers_sec, 0, "bt")
+    set_driver(drivers_sec, 1, "berniw")
 
     # === Race length & mode (keep UI visible) ===
-    # --- THIS IS THE CORRECTED PART ---
     race_manager_sec = find_section(root, "Race Manager")
     set_attnum(race_manager_sec, "distance", 0, unit="km")
     set_attnum(race_manager_sec, "laps", args.laps)
     set_attstr(race_manager_sec, "display mode", "normal")
-    # ----------------------------------
 
     # === Starting Grid: single-file, longitudinal offset d, initial speed 170 km/h ===
     sg = find_section(root, "Starting Grid")
