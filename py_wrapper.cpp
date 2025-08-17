@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <robot.h>
 
+#include <cmath>
 #include <iostream>
 
 // --- Global Python Objects ---
@@ -12,17 +13,23 @@ static PyObject *pModule, *pFunc_drive;
 static void pyDrive(int index, tCarElt *car, tSituation *s) {
   // 1. Create a Python dictionary from the car's state (tCarElt)
   PyObject *pStateDict = PyDict_New();
-  //   PyDict_SetItemString(pStateDict, "speed_x", PyFloat_FromDouble(car->priv.speed.x));
-  PyDict_SetItemString(pStateDict, "speed_x", PyFloat_FromDouble(car->pub.speed));
-  PyDict_SetItemString(pStateDict, "angle", PyFloat_FromDouble(car->pub.angle));
-  PyDict_SetItemString(pStateDict, "track_pos", PyFloat_FromDouble(car->pub.trkPos.toMiddle));
 
-  // Add track edge sensors
-  PyObject *pTrackSensors = PyList_New(19);
-  for (int i = 0; i < 19; ++i) {
-    PyList_SetItem(pTrackSensors, i, PyFloat_FromDouble(car->pub.sensors.track[i]));
-  }
-  PyDict_SetItemString(pStateDict, "track_sensors", pTrackSensors);
+  // Correctly access the nested data based on car.h and track.h
+  double speed_x = car->pub.DynGC.vel.x;
+  double track_pos = car->pub.trkPos.toMiddle;
+
+  // Calculate the angle relative to the track axis
+  double car_yaw = car->pub.DynGC.pos.az;
+  double track_angle = car->pub.trkPos.seg->angle[TR_CS];
+  double relative_angle = car_yaw - track_angle;
+
+  // Normalize angle to be within [-PI, PI]
+  while (relative_angle > M_PI) relative_angle -= 2.0 * M_PI;
+  while (relative_angle < -M_PI) relative_angle += 2.0 * M_PI;
+
+  PyDict_SetItemString(pStateDict, "speed_x", PyFloat_FromDouble(speed_x));
+  PyDict_SetItemString(pStateDict, "angle", PyFloat_FromDouble(relative_angle));
+  PyDict_SetItemString(pStateDict, "track_pos", PyFloat_FromDouble(track_pos));
 
   // 2. Call the Python 'drive' function
   PyObject *pArgs = PyTuple_Pack(1, pStateDict);
