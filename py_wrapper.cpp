@@ -12,7 +12,8 @@ static PyObject *pModule, *pFunc_drive;
 static void pyDrive(int index, tCarElt *car, tSituation *s) {
   // 1. Create a Python dictionary from the car's state (tCarElt)
   PyObject *pStateDict = PyDict_New();
-  PyDict_SetItemString(pStateDict, "speed_x", PyFloat_FromDouble(car->pub.speed.x));
+  //   PyDict_SetItemString(pStateDict, "speed_x", PyFloat_FromDouble(car->priv.speed.x));
+  PyDict_SetItemString(pStateDict, "speed_x", PyFloat_FromDouble(car->pub.speed));
   PyDict_SetItemString(pStateDict, "angle", PyFloat_FromDouble(car->pub.angle));
   PyDict_SetItemString(pStateDict, "track_pos", PyFloat_FromDouble(car->pub.trkPos.toMiddle));
 
