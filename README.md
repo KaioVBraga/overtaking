@@ -37,27 +37,27 @@ Refer to the guide for detailed commands and workarounds for common compilation 
 
 ## How to Run
 
-    ### Start TORCS and Prepare the Race:
+### Start TORCS and Prepare the Race:
 
-        Launch the game from your terminal: /usr/local/bin/torcs.
+    Launch the game from your terminal: /usr/local/bin/torcs.
 
-        In the main menu, navigate to Race -> Quick Race -> Configure Race.
+    In the main menu, navigate to Race -> Quick Race -> Configure Race.
 
-        In the "Player List" on the right, add one of the scr_server drivers (e.g., scr_server 1) to the "Selected Players" list on the left.
+    In the "Player List" on the right, add one of the scr_server drivers (e.g., scr_server 1) to the "Selected Players" list on the left.
 
-        Click Accept, and then click New Race.
+    Click Accept, and then click New Race.
 
-        The game will now freeze on the starting grid, and the terminal where you launched TORCS will display a message like Waiting for request on port 3001. This is the correct behavior.
+    The game will now freeze on the starting grid, and the terminal where you launched TORCS will display a message like Waiting for request on port 3001. This is the correct behavior.
 
-    ### Run the Python Client:
+### Run the Python Client:
 
-        Open a new terminal window.
+    Open a new terminal window.
 
-        Navigate to the directory containing scr_client.py and torcs_driver.py.
+    Navigate to the directory containing scr_client.py and torcs_driver.py.
 
-        Run the client script:
+    Run the client script:
 
-        python3 scr_client.py
+    python3 scr_client.py
 
 The Python script will connect to the waiting scr_server, and the race will begin immediately. The car will be controlled by the fuzzy logic defined in torcs_driver.py. To stop the bot, press Ctrl+C in the terminal where the script is running.
 Tuning the Bot
