@@ -1,1 +1,4 @@
 .venv
+*.log
+__pycache__
+info/car_state.json
