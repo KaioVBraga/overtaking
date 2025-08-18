@@ -3,7 +3,8 @@
 This project provides a Python client and an AI driver to control a car in The Open Racing Car Simulator (TORCS). The driver uses a fuzzy logic controller, implemented with the scikit-fuzzy library, to make real-time decisions for steering and acceleration, aiming to keep the car on the track.
 
 This system communicates with a special TORCS bot called scr_server over a network socket, allowing the Python code to run as a separate process from the game itself.
-Features
+
+## Features
 
 - Fuzzy Logic Controller: The car's driving logic is not based on hardcoded if/else statements but on linguistic rules (e.g., "IF the car is far left THEN steer hard right"), providing smoother and more human-like control.
 - Modular Design: The client (scr_client.py) is separate from the driver logic (torcs_driver.py), making it easy to experiment with and tune the AI's behavior without modifying the network code.
@@ -57,5 +58,4 @@ Tuning the Bot
 The "brain" of the bot is located in the \_setup_fuzzy_system method within the torcs_driver.py file. You can easily change the car's behavior by modifying:
 
 - Membership Functions: Adjust the ranges of the fuzzy sets (e.g., make the "center" of the track wider or narrower).
-
 - Fuzzy Rules: Add, remove, or modify the rules to handle different situations, such as taking corners at different speeds or recovering from being far off-center.
