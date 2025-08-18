@@ -114,10 +114,3 @@ class TorcsClient:
         
         self.sock.close()
         logger.info("Connection closed.")
-
-
-if __name__ == '__main__':
-    # Create a client and start the driving loop
-    client = TorcsClient()
-    client.connect()
-    client.drive_loop()
