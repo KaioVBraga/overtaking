@@ -31,15 +31,9 @@ class TorcsDriver:
 
         # --- Consequents (Outputs) ---
         steer = ctrl.Consequent(np.arange(-1, 1.01, 0.1), 'steer')
-        # accel = ctrl.Consequent(np.arange(0, 1.01, 0.1), 'accel')
+        accel = ctrl.Consequent(np.arange(0, 1.01, 0.1), 'accel')
 
         # --- Membership Functions for Inputs (Widened for stability) ---
-        # track_pos['far_left']   = fuzz.trimf(track_pos.universe, [-2.0, -2.0, -0.8])
-        # track_pos['left']       = fuzz.trimf(track_pos.universe, [-1.2, -0.5, 0.0])
-        # track_pos['center']     = fuzz.trimf(track_pos.universe, [-0.4, 0.0, 0.4])
-        # track_pos['right']      = fuzz.trimf(track_pos.universe, [0.0, 0.5, 1.2])
-        # track_pos['far_right']  = fuzz.trimf(track_pos.universe, [0.8, 2.0, 2.0])
-
         track_pos['far_right']   = fuzz.trimf(track_pos.universe, [-2.0, -2.0, -0.8])
         track_pos['right']       = fuzz.trimf(track_pos.universe, [-1.2, -0.5, 0.0])
         track_pos['center']     = fuzz.trimf(track_pos.universe, [-0.4, 0.0, 0.4])
@@ -52,33 +46,20 @@ class TorcsDriver:
         angle['right']       = fuzz.trimf(angle.universe, [0.0, 0.3, 0.6])
         angle['sharp_right'] = fuzz.trimf(angle.universe, [0.4, 1.0, np.pi])
 
-
-        # angle['sharp_right']  = fuzz.trimf(angle.universe, [-np.pi, -1.0, -0.4])
-        # angle['right']        = fuzz.trimf(angle.universe, [-0.6, -0.3, 0.0])
-        # angle['straight']    = fuzz.trimf(angle.universe, [-0.2, 0.0, 0.2])
-        # angle['left']       = fuzz.trimf(angle.universe, [0.0, 0.3, 0.6])
-        # angle['sharp_left'] = fuzz.trimf(angle.universe, [0.4, 1.0, np.pi])
-        
         speed_x['slow'] = fuzz.trimf(speed_x.universe, [0, 40, 90])
         speed_x['medium'] = fuzz.trimf(speed_x.universe, [70, 130, 190])
         speed_x['fast'] = fuzz.trimf(speed_x.universe, [160, 230, 301])
 
         # --- Membership Functions for Outputs ---
-        # steer['hard_left']   = fuzz.trimf(steer.universe, [-1.0, -0.8, -0.5])
-        # steer['left']        = fuzz.trimf(steer.universe, [-0.6, -0.3, 0.0])
-        # steer['zero']        = fuzz.trimf(steer.universe, [-0.1, 0.0, 0.1])
-        # steer['right']       = fuzz.trimf(steer.universe, [0.0, 0.3, 0.6])
-        # steer['hard_right']  = fuzz.trimf(steer.universe, [0.5, 0.8, 1.0])
-
         steer['hard_right']   = fuzz.trimf(steer.universe, [-1.0, -0.8, -0.5])
         steer['right']        = fuzz.trimf(steer.universe, [-0.6, -0.3, 0.0])
         steer['zero']        = fuzz.trimf(steer.universe, [-0.1, 0.0, 0.1])
         steer['left']       = fuzz.trimf(steer.universe, [0.0, 0.3, 0.6])
         steer['hard_left']  = fuzz.trimf(steer.universe, [0.5, 0.8, 1.0])
 
-        # accel['slow']   = fuzz.trimf(accel.universe, [0.0, 0.2, 0.4])
-        # accel['medium'] = fuzz.trimf(accel.universe, [0.3, 0.6, 0.8])
-        # accel['fast']   = fuzz.trimf(accel.universe, [0.7, 0.9, 1.0])
+        accel['slow']   = fuzz.trimf(accel.universe, [0.0, 0.2, 0.4])
+        accel['medium'] = fuzz.trimf(accel.universe, [0.3, 0.6, 0.8])
+        accel['fast']   = fuzz.trimf(accel.universe, [0.7, 0.9, 1.0])
 
         # --- Fuzzy Rules (Rewritten for Stability and Cornering) ---
         rules = [
@@ -102,19 +83,23 @@ class TorcsDriver:
 
             # --- Acceleration Rules ---
             # Go fast on straights
-            # ctrl.Rule(angle['straight'] & (speed_x['slow'] | speed_x['medium']), accel['fast']),
+            ctrl.Rule(angle['straight'] & (speed_x['slow'] | speed_x['medium']), accel['fast']),
             
             # # Maintain speed on straights if already fast
-            # ctrl.Rule(angle['straight'] & speed_x['fast'], accel['medium']),
+            ctrl.Rule(angle['straight'] & speed_x['fast'], accel['medium']),
             
             # # Moderate speed in slight turns
-            # ctrl.Rule(angle['left'] | angle['right'], accel['medium']),
+            ctrl.Rule(angle['left'] | angle['right'], accel['medium']),
             
             # # Go slow in sharp turns
-            # ctrl.Rule(angle['sharp_left'] | angle['sharp_right'], accel['slow']),
+            ctrl.Rule(angle['sharp_left'] | angle['sharp_right'], accel['slow']),
 
             # # Safety rule: if far off track, slow down
-            # ctrl.Rule(track_pos['far_left'] | track_pos['far_right'], accel['slow'])
+            ctrl.Rule(track_pos['far_left'] | track_pos['far_right'], accel['slow'])
+
+            # TODO: 
+            # 1) Track recovery rules
+            # 2) Overtaking rules
         ]
 
         # --- Create and store the simulation ---
@@ -130,7 +115,8 @@ class TorcsDriver:
                 'distRaced': car_state.get('distRaced'),
                 'fuel': car_state.get('fuel'),
                 'gear': car_state.get('gear'),
-                'trackPos': car_state.get('trackPos')
+                'trackPos': car_state.get('trackPos'),
+                'speedX': car_state.get('speedX')
             }
             logger.info(f"Car meaningful state: {car_meaningful_state}")
 
@@ -168,7 +154,7 @@ class TorcsDriver:
         self.fuzzy_simulation.inputs({
             'track_pos': track_pos,
             'angle': angle,
-            # 'speed_x': current_speed
+            'speed_x': current_speed
         })
 
         # 2. Compute the fuzzy logic output
@@ -182,8 +168,7 @@ class TorcsDriver:
         
         # Dynamic steering based on speed
         steer_lock = 0.8 - (current_speed / 400)
-        steer_command = fuzzy_output['steer'] if fuzzy_output['steer'] != None else 0
-        steer_command = steer_command * max(steer_lock, 0.2)
+        steer_command = fuzzy_output.get('steer', 0) * max(steer_lock, 0.2)
         
         # Smooth the steering to prevent jerky movements
         steer_command = (self.last_steer * 0.5) + (steer_command * 0.5)
@@ -197,8 +182,7 @@ class TorcsDriver:
             brake_command = 0.2
             
         car_control = dict(
-            # accel = fuzzy_output['accel'],
-            accel = 1,
+            accel = fuzzy_output['accel'],
             brake = brake_command,
             gear = 1, # Simple gear logic
             steer = steer_command,
