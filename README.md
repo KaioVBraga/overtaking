@@ -44,13 +44,12 @@ The game will now freeze on the starting grid, and the terminal where you launch
 
 ### Run the Python Client:
 
-Open a new terminal window.
+- Open a new terminal window.
+- Navigate to the directory of this repo.
 
-Navigate to the directory of this repo.
+- Run the client script:
 
-Run the client script:
-
-python3 main.py
+  python3 main.py
 
 The Python script will connect to the waiting scr_server, and the race will begin immediately. The car will be controlled by the fuzzy logic defined in torcs_driver.py. To stop the bot, press Ctrl+C in the terminal where the script is running.
 Tuning the Bot
