@@ -33,8 +33,10 @@ def intention_interpreter(self, sensors):
         # se base é positivo (aceleração), reduz um pouco quando a severidade é média
         intention = base * (1.0 - 0.6 * sev)
 
-    # normaliza para -1..1
+   
     intention = float(np.clip(intention, -1.0, 1.0))
     self._last_intention = intention
-    logger.debug(f"Intention interp -> cls={cls} sev={sev:.2f} speed={speed:.1f} intention={intention:.2f}")
+    
+    if self.tick % self.logger == 0:
+        logger.debug(f"Intention interp -> cls={cls} sev={sev:.2f} speed={speed:.1f} intention={intention:.2f}")
     return intention

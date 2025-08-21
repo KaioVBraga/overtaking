@@ -30,8 +30,8 @@ def accel_brake_model(self):
 
     rules = [
         ctrl.Rule(turn['straight'] & speed['low'], intention['full_acc']),
-        ctrl.Rule(turn['straight'] & speed['mid'], intention['gentle_acc']),
-        ctrl.Rule(turn['straight'] & speed['high'], intention['coast']),
+        ctrl.Rule(turn['straight'] & speed['mid'], intention['full_acc']),
+        ctrl.Rule(turn['straight'] & speed['high'], intention['full_acc']),
 
         ctrl.Rule(turn['long'] & speed['low'], intention['gentle_acc']),
         ctrl.Rule(turn['long'] & speed['mid'], intention['coast']),

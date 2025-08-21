@@ -27,6 +27,7 @@ class TorcsDriver:
         self.version = "1.1"
 
         self.tick = 0
+        self.logger = 1000
 
         # Controle
         self.gear = 1
@@ -38,6 +39,8 @@ class TorcsDriver:
         self._last_classification = None
         self._last_severity = 0.0 # Classificação da 'severidade' da curva
         self._last_intention = 0.0 # Classificação da 'intenção' aumentar ou diminuir a velocidade
+        self._last_gear_change_tick = 0
+        self._dist_to_turn = 100
 
         # Parâmetros de largada
         self.LAUNCH_DIST_THRESHOLD = 5.0
@@ -86,7 +89,10 @@ class TorcsDriver:
             accel, brake = accel_mod.accel_brake_controller(self, sensors)
             self.accel = float(np.clip(accel, 0.0, 1.0))
             self.brake = float(np.clip(brake, 0.0, 1.0))
-            logger.debug(f"[ACCEL] intention={self._last_intention:.2f} -> accel={self.accel:.2f} brake={self.brake:.2f}")
+            
+            if self.tick % self.logger == 0:
+                logger.debug(f"[ACCEL] intention={self._last_intention:.2f} -> accel={self.accel:.2f} brake={self.brake:.2f}")
+
         except Exception as e:
             logger.warning(f"accel_brake_handler error: {e}")
             self.accel = 0.0
@@ -130,7 +136,7 @@ class TorcsDriver:
 
         # 3) actions: accel/brake, gear, steering
         is_launch = self.is_launch(sensors)
-        aggress = self.LAUNCH_STEER_AGGRESSIVENESS if is_launch else 1.0
+        aggress = self.LAUNCH_STEER_AGGRESSIVENESS if is_launch else None
 
         self.accel_brake_handler(sensors)
         self.gear_handler(sensors)
