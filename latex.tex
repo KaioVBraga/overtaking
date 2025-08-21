@@ -1,0 +1,111 @@
+%---------------------------------------------------------------------
+% Relatório Técnico: Controle Autônomo no TORCS usando Lógica Fuzzy
+% Versão corrigida para o template da Sociedade Brasileira de Computação (SBC)
+%---------------------------------------------------------------------
+\documentclass[12pt]{article}
+
+% --- Pacotes e Configurações ---
+\usepackage{sbc-template}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{filecontents}
+
+%---------------------------------------------------------------------
+% Bibliografia embutida (arquivo .bib gerado automaticamente)
+%---------------------------------------------------------------------
+\begin{filecontents*}{referencias.bib}
+@misc{torcs2005,
+  author = {Wymann, Bernhard and Espi{\'e}, Eric and Guionneau, Christophe and Dimitrakakis, Christos and Moday, Manolo and Lagarrigue, Jean-Philippe},
+  title  = {{TORCS}, The Open Racing Car Simulator},
+  howpublished = {\url{http://torcs.sourceforge.net}},
+  year   = {2005},
+  note   = {Acessado em: 21 ago. 2025}
+}
+
+@misc{skfuzzy,
+  author = {Warner, Joshua and Newville, Matthew and others},
+  title  = {scikit-fuzzy},
+  year   = {2019},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/scikit-fuzzy/scikit-fuzzy}},
+  note = {Acessado em: 21 ago. 2025}
+}
+
+@article{zadeh1965,
+  author  = {Zadeh, Lotfi A.},
+  title   = {Fuzzy sets},
+  journal = {Information and Control},
+  volume  = {8},
+  number  = {3},
+  pages   = {338--353},
+  year    = {1965},
+  doi     = {10.1016/S0019-9958(65)90241-X}
+}
+
+@article{mamdani1975,
+  author    = {Mamdani, Ebrahim H. and Assilian, Sedrak},
+  title     = {An experiment in linguistic synthesis with a fuzzy logic controller},
+  journal   = {International Journal of Man-Machine Studies},
+  volume    = {7},
+  number    = {1},
+  pages     = {1--13},
+  year      = {1975},
+  publisher = {Elsevier}
+}
+\end{filecontents*}
+
+% --- Metadados do Artigo ---
+\title{Relat\'orio T\'ecnico: Controlador Fuzzy para Ve\'iculos Aut\^onomos no TORCS}
+\author{Rafael de Oliveira Vargas\inst{1} \and Kaio Vinycius Braga dos Santos\inst{1}}
+\address{
+    Departamento de Ci\^encia da Computa\c{c}\~ao -- Universidade Federal de Juiz de Fora (UFJF)\\
+    Juiz de Fora -- MG -- Brazil\\
+    \email{rafael.vargas@estudante.ufjf.br, kaio.braga@estudante.ufjf.br}
+}
+
+% --- Início do Documento ---
+\begin{document}
+
+\maketitle
+
+% --- Resumo e Abstract ---
+\begin{resumo}
+Este trabalho descreve o desenvolvimento e a integra\c{c}\~ao de um controlador baseado em l\'ogica fuzzy para a condu\c{c}\~ao de um ve\'iculo no ambiente de simula\c{c}\~ao TORCS. O artefato, implementado em Python, organiza-se em arquivos-chave respons\'aveis pela interpreta\c{c}\~ao de sensores, gera\c{c}\~ao de a\c{c}\~oes e comunica\c{c}\~ao com o servidor TORCS. As estruturas de infer\^encia utilizam a biblioteca \texttt{scikit-fuzzy} para definir antecedentes e consequentes, fun\c{c}\~oes de pertin\^encia triangulares e sistemas de controle com \texttt{ControlSystem} e \texttt{ControlSystemSimulation}. O relat\'orio foca nos m\'odulos de controle que comp\~oem a tomada de decis\~ao, descrevendo como os modelos fuzzy s\~ao constru\'idos e utilizados para produzir os sinais de dire\c{c}\~ao, acelera\c{c}\~ao, freio e sele\c{c}\~ao de marcha.
+\end{resumo}
+
+\begin{abstract}
+This work describes the development and integration of a fuzzy logic-based controller for vehicle driving in the TORCS simulation environment. The artifact, implemented in Python, is organized into key files responsible for sensor interpretation, action generation, and communication with the TORCS server. The inference structures use the \texttt{scikit-fuzzy} library to define antecedents and consequents, triangular membership functions, and control systems with \texttt{ControlSystem} and \texttt{ControlSystemSimulation}. The report focuses on the control modules that make decisions, describing how fuzzy models are constructed and used to produce steering, acceleration, braking, and gear shift signals.
+\end{abstract}
+
+% --- Seções Principais ---
+\section{Introdu\c{c}\~ao}
+A aplica\c{c}\~ao de l\'ogica fuzzy ao controle de ve\'iculos possibilita a incorpora\c{c}\~ao de heur\'isticas humanas e regras lingu\'isticas em controladores robustos capazes de lidar com medi\c{c}\~oes ruidosas e situa\c{c}\~oes n\~ao lineares \cite{zadeh1965, mamdani1975}. O simulador TORCS (The Open Racing Car Simulator) \cite{torcs2005} oferece uma plataforma consolidada para validar controladores aut\^onomos em cen\'arios reprodut\'iveis. O presente trabalho descreve o projeto e a implementa\c{c}\~ao de um controlador fuzzy implementado em Python, organizado em m\'odulos que se integram ao servidor TORCS atrav\'es de um cliente socket.
+
+A quest\~ao-problema definida para este trabalho \emph{\'e}: ``Projetar um controlador Fuzzy e integrar o mesmo ao TORCS, fazendo o gerenciamento do controle de acelera\c{c}\~ao, freio, dire\c{c}\~ao e marcha com o objetivo de conseguir ter um ve\'iculo aut\^onomo que se comporte bem a diferentes tra\c{c}ados de pista''.
+
+O objetivo geral do trabalho foi implementar e avaliar um controlador fuzzy no ambiente TORCS que gerencie dire\c{c}\~ao, acelera\c{c}\~ao, freio e marcha. Entre os objetivos espec\'ificos est\~ao a integra\c{c}\~ao dos sensores do TORCS ao controlador fuzzy, a defini\c{c}\~ao de regras fuzzy para as sa\'idas de controle e a avalia\c{c}\~ao qualitativa do comportamento do ve\'iculo em diferentes tipos de pista.
+
+\section{Materiais e M\'etodos}
+A implementa\c{c}\~ao analisada est\'a organizada em um n\'ucleo de arquivos que coordenam a tomada de decis\~ao e a comunica\c{c}\~ao com o simulador. O arquivo \texttt{torcs\_driver.py} cont\'em a classe \texttt{TorcsDriver}, que orquestra o ciclo de controle e armazena o estado interno. O arquivo \texttt{torcs\_client.py} implementa o cliente socket respons\'avel por estabelecer a comunica\c{c}\~ao com o servidor TORCS. O diret\'orio \texttt{Interpretation} inclui o m\'odulo \texttt{track.py}, que constr\'oi um classificador fuzzy para curvas, enquanto o diret\'orio \texttt{Actions} abriga os m\'odulos \texttt{acceleration.py}, \texttt{gear.py} e \texttt{steering.py}, que implementam os controladores fuzzy para seus respectivos atuadores.
+
+As ferramentas utilizadas incluem o simulador TORCS, a biblioteca \texttt{scikit-fuzzy} \cite{skfuzzy} para a constru\c{c}\~ao dos sistemas de controle, e o ambiente Python 3.x para integrar os componentes. A implementa\c{c}\~ao estruturou vari\'aveis lingu\'isticas para entradas como severidade da curva e velocidade, e para sa\'idas como inten\c{c}\~ao de acelera\c{c}\~ao/freio e sinal de troca de marcha. As regras foram formuladas no estilo SE-ENT\~AO e encapsuladas em inst\^ancias de \texttt{ControlSystem}.
+
+\section{Resultados e Discuss\~ao}
+A avalia\c{c}\~ao do comportamento do controlador foi realizada de forma qualitativa. Em pistas ovais, o ve\'iculo apresentou comportamento consistente. Em pistas com tra\c{c}ados mais complexos, o controlador consegue seguir a pista, mas mostra limita\c{c}\~oes: as frenagens s\~ao, por vezes, bruscas e a trajet\'oria tende a permanecer centrada, em vez de seguir o tra\c{c}ado \emph{otimizado} para tempo de volta. Em intera\c{c}\~oes com outros ve\'iculos, o sistema evita colis\~oes frontais, contudo carece de percep\c{c}\~ao lateral, pois sensores de 360 graus n\~ao foram implementados.
+
+A discuss\~ao qualitativa indica que a escolha por fun\c{c}\~oes de pertin\^encia triangulares e regras program\'aticas fornece previsibilidade, mas imp\~oe rigidez na resposta. A parametriza\c{c}\~ao manual das fun\c{c}\~oes mostrou-se sens\'ivel ao tipo de pista, o que evidencia a necessidade de m\'etodos de otimiza\c{c}\~ao. Em suma, o sistema \'e funcional em cen\'arios controlados, com potencial de expans\~ao para cen\'arios mais complexos.
+
+\section{Conclus\~ao}
+O desenvolvimento alcan\c{c}ou o objetivo principal de implementar e integrar um controlador fuzzy ao ambiente TORCS. Foram identificadas limita\c{c}\~oes que indicam dire\c{c}\~oes para trabalhos futuros: a aus\^encia de sensores 360 graus restringe a percep\c{c}\~ao lateral; o sistema n\~ao persegue um tra\c{c}ado \emph{otimizado}; e a parametriza\c{c}\~ao manual exige ajuste para cada pista. Recomendam-se investiga\c{c}\~oes futuras para implementar sensores adicionais, desenvolver m\'etodos de ajuste autom\'atico dos par\^ametros fuzzy e aperfei\c{c}oar o julgamento de curvas.
+
+% --- Referências ---
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+\end{document}
