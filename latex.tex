@@ -14,6 +14,7 @@
 \usepackage{amsmath}
 \usepackage{booktabs}
 \usepackage{filecontents}
+\usepackage{enumitem}
 
 %---------------------------------------------------------------------
 % Bibliografia embutida (arquivo .bib gerado automaticamente)
@@ -100,6 +101,110 @@ As ferramentas utilizadas incluem o simulador TORCS, a biblioteca \texttt{scikit
 A avalia\c{c}\~ao do comportamento do controlador foi realizada de forma qualitativa. Em pistas ovais, o ve\'iculo apresentou comportamento consistente. Em pistas com tra\c{c}ados mais complexos, o controlador consegue seguir a pista, mas mostra limita\c{c}\~oes: as frenagens s\~ao, por vezes, bruscas e a trajet\'oria tende a permanecer centrada, em vez de seguir o tra\c{c}ado \emph{otimizado} para tempo de volta. Em intera\c{c}\~oes com outros ve\'iculos, o sistema evita colis\~oes frontais, contudo carece de percep\c{c}\~ao lateral, pois sensores de 360 graus n\~ao foram implementados.
 
 A discuss\~ao qualitativa indica que a escolha por fun\c{c}\~oes de pertin\^encia triangulares e regras program\'aticas fornece previsibilidade, mas imp\~oe rigidez na resposta. A parametriza\c{c}\~ao manual das fun\c{c}\~oes mostrou-se sens\'ivel ao tipo de pista, o que evidencia a necessidade de m\'etodos de otimiza\c{c}\~ao. Em suma, o sistema \'e funcional em cen\'arios controlados, com potencial de expans\~ao para cen\'arios mais complexos.
+
+\subsection{Análise das Regras da Lógica Fuzzy no Piloto de IA do TORCS}
+Este documento descreve o conjunto completo de regras de lógica fuzzy que governam o processo de tomada de decisão do piloto de IA \textbf{PilotoNebuloso}. As regras são definidas em linguagem natural para esclarecer a lógica por trás do comportamento do bot em diferentes cenários de pilotagem. Elas estão agrupadas de acordo com o sistema de controle específico ao qual pertencem.
+
+\subsubsection{Interpretação da Pista: Classificador de Curva (\texttt{track.py})}
+O objetivo deste sistema é analisar a pista à frente e determinar a \textbf{severidade de uma curva futura}. Ele utiliza os sensores de pista frontais e laterais como entradas.
+\begin{itemize}[label=\textbullet, leftmargin=*]
+    \item \textbf{SE} a pista à frente está \texttt{far} \textbf{E} a diferença lateral é \texttt{small}, \textbf{ENTÃO} a pista é \texttt{straight}.
+    \item \textbf{SE} a pista à frente está \texttt{far} \textbf{E} a diferença lateral é \texttt{medium}, \textbf{ENTÃO} é uma \texttt{long\_turn}.
+    \item \textbf{SE} a pista à frente está \texttt{far} \textbf{E} a diferença lateral é \texttt{large}, \textbf{ENTÃO} é uma \texttt{long\_turn}.
+    \item \textbf{SE} a pista à frente está \texttt{close} \textbf{E} a diferença lateral é \texttt{small}, \textbf{ENTÃO} é uma \texttt{long\_turn}.
+    \item \textbf{SE} a pista à frente está \texttt{close} \textbf{E} a diferença lateral é \texttt{medium}, \textbf{ENTÃO} é uma curva \texttt{medium}.
+    \item \textbf{SE} a pista à frente está \texttt{close} \textbf{E} a diferença lateral é \texttt{large}, \textbf{ENTÃO} é uma curva \texttt{sharp}.
+    \item \textbf{SE} a pista à frente está \texttt{very\_close} \textbf{E} a diferença lateral é \texttt{small}, \textbf{ENTÃO} é uma curva \texttt{medium}.
+    \item \textbf{SE} a pista à frente está \texttt{very\_close} \textbf{E} a diferença lateral é \texttt{medium}, \textbf{ENTÃO} é uma curva \texttt{sharp}.
+    \item \textbf{SE} a pista à frente está \texttt{very\_close} \textbf{E} a diferença lateral é \texttt{large}, \textbf{ENTÃO} é uma curva \texttt{sharp}.
+\end{itemize}
+
+\subsubsection{Controlador de Aceleração e Freio (\texttt{accelaration.py})}
+Este sistema determina a \textbf{intenção} primária do piloto (acelerar, frear ou deixar o carro rolar) com base na severidade da curva (do classificador) e na velocidade atual do carro.
+\begin{itemize}[label=\textbullet, leftmargin=*]
+    \item \textbf{Seções Retas}:
+    \begin{itemize}
+        \item \textbf{SE} a curva é \texttt{straight} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} a intenção é \texttt{full\_acc} (aceleração total).
+        \item \textbf{SE} a curva é \texttt{straight} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} a intenção é \texttt{full\_acc}.
+        \item \textbf{SE} a curva é \texttt{straight} \textbf{E} a velocidade é \texttt{high}, \textbf{ENTÃO} a intenção é \texttt{full\_acc}.
+    \end{itemize}
+    \item \textbf{Curvas Longas}:
+    \begin{itemize}
+        \item \textbf{SE} a curva é \texttt{long} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} a intenção é \texttt{gentle\_acc} (aceleração suave).
+        \item \textbf{SE} a curva é \texttt{long} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} a intenção é \texttt{coast} (deixar rolar).
+        \item \textbf{SE} a curva é \texttt{long} \textbf{E} a velocidade é \texttt{high}, \textbf{ENTÃO} a intenção é \texttt{brake} (frear).
+    \end{itemize}
+    \item \textbf{Curvas Médias}:
+    \begin{itemize}
+        \item \textbf{SE} a curva é \texttt{medium} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} a intenção é \texttt{coast}.
+        \item \textbf{SE} a curva é \texttt{medium} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} a intenção é \texttt{brake}.
+        \item \textbf{SE} a curva é \texttt{medium} \textbf{E} a velocidade é \texttt{high}, \textbf{ENTÃO} a intenção é \texttt{strong\_brake} (frear forte).
+    \end{itemize}
+    \item \textbf{Curvas Fechadas}:
+    \begin{itemize}
+        \item \textbf{SE} a curva é \texttt{sharp} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} a intenção é \texttt{brake}.
+        \item \textbf{SE} a curva é \texttt{sharp} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} a intenção é \texttt{strong\_brake}.
+        \item \textbf{SE} a curva é \texttt{sharp} \textbf{E} a velocidade é \texttt{high}, \textbf{ENTÃO} a intenção é \texttt{strong\_brake}.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Controlador de Agressividade da Direção (\texttt{steering.py})}
+Este sistema não calcula o ângulo de esterçamento diretamente. Em vez disso, ele determina \emph{quão agressivamente} aplicar o esterçamento calculado.
+\begin{itemize}[label=\textbullet, leftmargin=*]
+    \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{high}, \textbf{ENTÃO} a agressividade é \texttt{gentle}.
+    \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} a agressividade é \texttt{gentle}.
+    \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} a agressividade é \texttt{normal}.
+    \item \textbf{SE} a severidade da curva é \texttt{medium} \textbf{E} a distância para a curva é \texttt{far}, \textbf{ENTÃO} a agressividade é \texttt{normal}.
+    \item \textbf{SE} a severidade da curva é \texttt{medium} \textbf{E} a distância para a curva é \texttt{close}, \textbf{ENTÃO} a agressividade é \texttt{gentle}.
+    \item \textbf{SE} a severidade da curva é \texttt{medium} \textbf{E} a distância para a curva é \texttt{very\_close}, \textbf{ENTÃO} a agressividade é \texttt{gentle}.
+    \item \textbf{SE} a severidade da curva é \texttt{low} \textbf{E} a distância para a curva é \texttt{far}, \textbf{ENTÃO} a agressividade é \texttt{aggressive}.
+    \item \textbf{SE} a severidade da curva é \texttt{low} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} a agressividade é \texttt{normal}.
+    \item \textbf{SE} a severidade da curva é \texttt{low} \textbf{E} a velocidade é \texttt{high} \textbf{E} a distância para a curva é \texttt{close}, \textbf{ENTÃO} a agressividade é \texttt{normal}.
+    \item \textbf{SE} a velocidade é \texttt{high} \textbf{E} a severidade da curva é \texttt{medium}, \textbf{ENTÃO} a agressividade é \texttt{gentle}.
+    \item \textbf{SE} a velocidade é \texttt{high} \textbf{E} a distância para a curva é \texttt{close}, \textbf{ENTÃO} a agressividade é \texttt{gentle}.
+\end{itemize}
+
+\subsubsection{Controlador de Troca de Marchas (\texttt{gear.py})}
+Este é o sistema mais complexo, gerenciando as trocas de marcha. A saída é uma decisão para subir (\texttt{up}), reduzir (\texttt{down}) ou manter (\texttt{keep}) a marcha atual.
+\begin{itemize}[label=\textbullet, leftmargin=*]
+    \item \textbf{Prioridade 1: Segurança nas Curvas}
+    \begin{itemize}
+        \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{low}, \textbf{ENTÃO} reduza (\texttt{down}).
+        \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{mid} \textbf{E} a intenção é \texttt{braking}, \textbf{ENTÃO} reduza (\texttt{down}).
+        \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{mid} \textbf{E} a intenção é \texttt{coast}, \textbf{ENTÃO} reduza (\texttt{down}).
+    \end{itemize}
+    \item \textbf{Prioridade 2: Frenagem}
+    \begin{itemize}
+        \item \textbf{SE} a intenção é \texttt{braking}, \textbf{ENTÃO} reduza (\texttt{down}).
+    \end{itemize}
+    \item \textbf{Prioridade 3: Lógica de Aceleração}
+    \begin{itemize}
+        \item \textbf{SE} o RPM é \texttt{very\_high}, \textbf{ENTÃO} suba (\texttt{up}).
+        \item \textbf{SE} o RPM é \texttt{high} \textbf{E} a marcha atual \textbf{NÃO} é \texttt{high}, \textbf{ENTÃO} suba (\texttt{up}).
+        \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{mid}, \textbf{ENTÃO} mantenha (\texttt{keep}).
+        \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{high}, \textbf{ENTÃO} suba (\texttt{up}).
+        \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{low} \textbf{E} a marcha atual é \texttt{mid}, \textbf{ENTÃO} reduza (\texttt{down}) (para ganhar torque).
+        \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{low} \textbf{E} a marcha atual é \texttt{high}, \textbf{ENTÃO} reduza (\texttt{down}).
+        \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{very\_low}, \textbf{ENTÃO} reduza (\texttt{down}).
+    \end{itemize}
+    \item \textbf{Prioridade 4: Lógica de "Coasting"}
+    \begin{itemize}
+        \item \textbf{SE} a intenção é \texttt{coast} \textbf{E} o RPM é \texttt{mid}, \textbf{ENTÃO} mantenha (\texttt{keep}).
+        \item \textbf{SE} a intenção é \texttt{coast} \textbf{E} o RPM é \texttt{high} \textbf{E} a marcha atual \textbf{NÃO} é \texttt{high}, \textbf{ENTÃO} suba (\texttt{up}).
+        \item \textbf{SE} a intenção é \texttt{coast} \textbf{E} o RPM é \texttt{low} \textbf{E} a marcha atual é \texttt{high}, \textbf{ENTÃO} reduza (\texttt{down}).
+    \end{itemize}
+    \item \textbf{Prioridade 5: Troca Antecipada}
+    \begin{itemize}
+        \item \textbf{SE} a severidade da curva é \texttt{high} \textbf{E} a velocidade é \texttt{high} \textbf{E} a intenção é \texttt{accel}, \textbf{ENTÃO} reduza (\texttt{down}) (antecipando a necessidade de frear).
+        \item \textbf{SE} a severidade da curva é \texttt{medium} \textbf{E} a intenção é \texttt{braking}, \textbf{ENTÃO} reduza (\texttt{down}).
+    \end{itemize}
+    \item \textbf{Condição Estável e Regras de Fallback}
+    \begin{itemize}
+        \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{mid} \textbf{E} a velocidade é \texttt{high} \textbf{E} a marcha atual é \texttt{high}, \textbf{ENTÃO} mantenha (\texttt{keep}).
+        \item \textbf{SE} a intenção é \texttt{coast} \textbf{E} o RPM é \texttt{mid} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} mantenha (\texttt{keep}).
+        \item \textbf{SE} (condição de fallback: a intenção não é frear nem acelerar, o RPM é mid e a severidade da curva não é alta), \textbf{ENTÃO} mantenha (\texttt{keep}).
+    \end{itemize}
+\end{itemize}
 
 \section{Conclus\~ao}
 O desenvolvimento alcan\c{c}ou o objetivo principal de implementar e integrar um controlador fuzzy ao ambiente TORCS. Foram identificadas limita\c{c}\~oes que indicam dire\c{c}\~oes para trabalhos futuros: a aus\^encia de sensores 360 graus restringe a percep\c{c}\~ao lateral; o sistema n\~ao persegue um tra\c{c}ado \emph{otimizado}; e a parametriza\c{c}\~ao manual exige ajuste para cada pista. Recomendam-se investiga\c{c}\~oes futuras para implementar sensores adicionais, desenvolver m\'etodos de ajuste autom\'atico dos par\^ametros fuzzy e aperfei\c{c}oar o julgamento de curvas.
