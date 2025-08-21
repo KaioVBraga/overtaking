@@ -15,6 +15,7 @@
 \usepackage{booktabs}
 \usepackage{filecontents}
 \usepackage{enumitem}
+\usepackage{longtable} % Para tabelas que podem quebrar a página
 
 %---------------------------------------------------------------------
 % Bibliografia embutida (arquivo .bib gerado automaticamente)
@@ -95,12 +96,145 @@ O objetivo geral do trabalho foi implementar e avaliar um controlador fuzzy no a
 \section{Materiais e M\'etodos}
 A implementa\c{c}\~ao analisada est\'a organizada em um n\'ucleo de arquivos que coordenam a tomada de decis\~ao e a comunica\c{c}\~ao com o simulador. O arquivo \texttt{torcs\_driver.py} cont\'em a classe \texttt{TorcsDriver}, que orquestra o ciclo de controle e armazena o estado interno. O arquivo \texttt{torcs\_client.py} implementa o cliente socket respons\'avel por estabelecer a comunica\c{c}\~ao com o servidor TORCS. O diret\'orio \texttt{Interpretation} inclui o m\'odulo \texttt{track.py}, que constr\'oi um classificador fuzzy para curvas, enquanto o diret\'orio \texttt{Actions} abriga os m\'odulos \texttt{acceleration.py}, \texttt{gear.py} e \texttt{steering.py}, que implementam os controladores fuzzy para seus respectivos atuadores.
 
-As ferramentas utilizadas incluem o simulador TORCS, a biblioteca \texttt{scikit-fuzzy} \cite{skfuzzy} para a constru\c{c}\~ao dos sistemas de controle, e o ambiente Python 3.x para integrar os componentes. A implementa\c{c}\~ao estruturou vari\'aveis lingu\'isticas para entradas como severidade da curva e velocidade, e para sa\'idas como inten\c{c}\~ao de acelera\c{c}\~ao/freio e sinal de troca de marcha. As regras foram formuladas no estilo SE-ENT\~AO e encapsuladas em inst\^ancias de \texttt{ControlSystem}.
+As ferramentas utilizadas incluem o simulador TORCS, a biblioteca \texttt{scikit-fuzzy} \cite{skfuzzy} para a constru\c{c}\~ao dos sistemas de controle, e o ambiente Python 3.x para integrar os componentes. A implementa\c{c}\~ao estruturou vari\'aveis lingu\'isticas para entradas como severidade da curva e velocidade, e para sa\'idas como inten\c{c}\~ao de acelera\c{c}\~ao/freio e sinal de troca de marcha. As regras foram formuladas no estilo SE-ENT\~AO e encapsuladas em inst\^ancias de \texttt{ControlSystem}. O método de defuzzificação utilizado em todos os sistemas é o Centroide de Área (CoA), que é o padrão da biblioteca.
 
 \section{Resultados e Discuss\~ao}
 A avalia\c{c}\~ao do comportamento do controlador foi realizada de forma qualitativa. Em pistas ovais, o ve\'iculo apresentou comportamento consistente. Em pistas com tra\c{c}ados mais complexos, o controlador consegue seguir a pista, mas mostra limita\c{c}\~oes: as frenagens s\~ao, por vezes, bruscas e a trajet\'oria tende a permanecer centrada, em vez de seguir o tra\c{c}ado \emph{otimizado} para tempo de volta. Em intera\c{c}\~oes com outros ve\'iculos, o sistema evita colis\~oes frontais, contudo carece de percep\c{c}\~ao lateral, pois sensores de 360 graus n\~ao foram implementados.
 
 A discuss\~ao qualitativa indica que a escolha por fun\c{c}\~oes de pertin\^encia triangulares e regras program\'aticas fornece previsibilidade, mas imp\~oe rigidez na resposta. A parametriza\c{c}\~ao manual das fun\c{c}\~oes mostrou-se sens\'ivel ao tipo de pista, o que evidencia a necessidade de m\'etodos de otimiza\c{c}\~ao. Em suma, o sistema \'e funcional em cen\'arios controlados, com potencial de expans\~ao para cen\'arios mais complexos.
+
+\subsection{Definição das Variáveis Fuzzy e Funções de Pertinência}
+A seguir, são detalhadas as variáveis linguísticas (antecedentes e consequentes) e suas respectivas funções de pertinência para cada sistema de controle fuzzy. Todas as funções de pertinência são do tipo triangular (\texttt{trimf}), exceto quando especificado.
+
+\begin{longtable}{llll}
+\caption{Variáveis do Classificador de Curva (\texttt{track.py})} \label{tab:track_vars} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{c}%
+{{\bfseries \tablename\ \thetable{} -- continuação}} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{center} & Distância do sensor frontal & [0, 100] & \texttt{very\_close}: [0, 0, 30] \\
+(Antecedente) & & & \texttt{close}: [20, 40, 60] \\
+& & & \texttt{far}: [50, 100, 100] \\
+\midrule
+\texttt{side} & Diferença entre sensores laterais & [0, 100] & \texttt{small}: [0, 0, 20] \\
+(Antecedente) & & & \texttt{medium}: [10, 30, 50] \\
+& & & \texttt{large}: [40, 100, 100] \\
+\midrule
+\texttt{turn\_severity} & Severidade da curva & [0, 1] & \texttt{straight}: [0.0, 0.0, 0.2] \\
+(Consequente) & & & \texttt{long\_turn}: [0.1, 0.3, 0.5] \\
+& & & \texttt{medium}: [0.35, 0.55, 0.75] \\
+& & & \texttt{sharp}: [0.6, 1.0, 1.0] \\
+\end{longtable}
+
+\begin{longtable}{llll}
+\caption{Variáveis do Controlador de Aceleração/Freio (\texttt{accelaration.py})} \label{tab:accel_vars} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{c}%
+{{\bfseries \tablename\ \thetable{} -- continuação}} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{turn\_severity} & Severidade da curva & [0, 1] & \texttt{straight}: [0.0, 0.0, 0.25] \\
+(Antecedente) & & & \texttt{long}: [0.15, 0.3, 0.5] \\
+& & & \texttt{medium}: [0.35, 0.55, 0.75] \\
+& & & \texttt{sharp}: [0.6, 1.0, 1.0] \\
+\midrule
+\texttt{speed} & Velocidade do veículo (km/h) & [0, 350] & \texttt{low}: [0, 0, 60] \\
+(Antecedente) & & & \texttt{mid}: [40, 120, 200] \\
+& & & \texttt{high}: [150, 250, 350] \\
+\midrule
+\texttt{intention} & Intenção de acelerar ou frear & [-1, 1] & \texttt{strong\_brake}: [-1.0, -1.0, -0.5] \\
+(Consequente) & & & \texttt{brake}: [-0.8, -0.4, -0.1] \\
+& & & \texttt{coast}: [-0.2, 0.0, 0.2] \\
+& & & \texttt{gentle\_acc}: [0.1, 0.4, 0.7] \\
+& & & \texttt{full\_acc}: [0.5, 1.0, 1.0] \\
+\end{longtable}
+
+\begin{longtable}{llll}
+\caption{Variáveis do Controlador de Agressividade da Direção (\texttt{steering.py})} \label{tab:steering_vars} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{c}%
+{{\bfseries \tablename\ \thetable{} -- continuação}} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{speed} & Velocidade do veículo (km/h) & [0, 350] & \texttt{low}: [0, 0, 60] \\
+(Antecedente) & & & \texttt{mid}: [40, 120, 200] \\
+& & & \texttt{high}: [150, 250, 350] \\
+\midrule
+\texttt{severity} & Severidade da curva & [0, 1] & \texttt{low}: [0.0, 0.0, 0.3] \\
+(Antecedente) & & & \texttt{medium}: [0.2, 0.5, 0.8] \\
+& & & \texttt{high}: [0.6, 1.0, 1.0] \\
+\midrule
+\texttt{dist\_to\_turn} & Distância estimada para a curva & [0, 100] & \texttt{very\_close}: [0, 0, 20] \\
+(Antecedente) & & & \texttt{close}: [10, 30, 50] \\
+& & & \texttt{far}: [40, 100, 100] \\
+\midrule
+\texttt{aggressiveness} & Fator de suavização da direção & [0.1, 1.0] & \texttt{gentle}: [0.1, 0.1, 0.4] \\
+(Consequente) & & & \texttt{normal}: [0.3, 0.5, 0.7] \\
+& & & \texttt{aggressive}: [0.6, 1.0, 1.0] \\
+\end{longtable}
+
+\begin{longtable}{llll}
+\caption{Variáveis do Controlador de Troca de Marchas (\texttt{gear.py})} \label{tab:gear_vars} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{c}%
+{{\bfseries \tablename\ \thetable{} -- continuação}} \\
+\toprule
+\textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\texttt{intention} & Intenção de acelerar ou frear & [-1, 1] & \texttt{braking}: [-1, -1, -0.2] \\
+(Antecedente) & & & \texttt{coast}: [-0.3, 0, 0.3] \\
+& & & \texttt{accel}: [0.1, 1, 1] \\
+\midrule
+\texttt{rpm} & Rotações por minuto do motor & [0, 10000] & \texttt{very\_low}: [0, 0, 2000] \\
+(Antecedente) & & & \texttt{low}: [1000, 3000, 4000] \\
+& & & \texttt{mid}: [3000, 5000, 7000] \\
+& & & \texttt{high}: [6000, 8000, 10000] \\
+& & & \texttt{very\_high}: [8000, 10000, 10000] \\
+\midrule
+\texttt{speed} & Velocidade do veículo (km/h) & [0, 350] & \texttt{low}: [0, 0, 60] \\
+(Antecedente) & & & \texttt{mid}: [40, 120, 200] \\
+& & & \texttt{high}: [150, 250, 350] \\
+\midrule
+\texttt{gear\_in} & Marcha atual & [1, 6] & \texttt{low}: ZMF(1, 3) \\
+(Antecedente) & & & \texttt{mid}: PIMF(2, 3, 4, 5) \\
+& & & \texttt{high}: SMF(4, 6) \\
+\midrule
+\texttt{severity} & Severidade da curva & [0, 1] & \texttt{low}: [0.0, 0.0, 0.3] \\
+(Antecedente) & & & \texttt{medium}: [0.2, 0.5, 0.8] \\
+& & & \texttt{high}: [0.6, 1.0, 1.0] \\
+\midrule
+\texttt{gear\_adj} & Ajuste de marcha & [-1, 1] & \texttt{down}: [-1, -1, -0.4] \\
+(Consequente) & & & \texttt{keep}: [-0.3, 0, 0.3] \\
+& & & \texttt{up}: [0.4, 1, 1] \\
+\end{longtable}
 
 \subsection{Análise das Regras da Lógica Fuzzy no Piloto de IA do TORCS}
 Este documento descreve o conjunto completo de regras de lógica fuzzy que governam o processo de tomada de decisão do piloto de IA \textbf{PilotoNebuloso}. As regras são definidas em linguagem natural para esclarecer a lógica por trás do comportamento do bot em diferentes cenários de pilotagem. Elas estão agrupadas de acordo com o sistema de controle específico ao qual pertencem.
@@ -203,7 +337,7 @@ Este é o sistema mais complexo, gerenciando as trocas de marcha. A saída é um
         \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{mid} \textbf{E} a velocidade é \texttt{high} \textbf{E} a marcha atual é \texttt{high}, \textbf{ENTÃO} mantenha (\texttt{keep}).
         \item \textbf{SE} a intenção é \texttt{coast} \textbf{E} o RPM é \texttt{mid} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} mantenha (\texttt{keep}).
         \item \textbf{SE} (condição de fallback: a intenção não é frear nem acelerar, o RPM é mid e a severidade da curva não é alta), \textbf{ENTÃO} mantenha (\texttt{keep}).
-    \end{itemize}
+    \end{trivlist}
 \end{itemize}
 
 \section{Conclus\~ao}
