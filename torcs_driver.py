@@ -1,195 +1,154 @@
 # torcs_driver.py
-# An improved TORCS driver with a more advanced fuzzy logic controller for better cornering.
-# Author: Gemini
-# Date: 2025-08-18
-
 import numpy as np
-import skfuzzy as fuzz
-from skfuzzy import control as ctrl
+
 from log import logger
+
+# Importando os módulos de Interpretation e Actions.
+# Ajuste os caminhos de import caso você tenha os pacotes montados (por exemplo: Interpretation.track)
+try:
+    from Interpretation import track as track_mod
+    from Interpretation import intention as intention_mod
+    from Actions import accelaration as accel_mod
+    from Actions import gear as gear_mod
+    from Actions import steering as steering_mod
+except Exception:
+    # Fallback caso os módulos estejam no mesmo diretório (ou durante testes)
+    import track as track_mod
+    import intention as intention_mod
+    import accelaration as accel_mod
+    import gear as gear_mod
+    import steering as steering_mod
+
 
 class TorcsDriver:
     def __init__(self):
-        # --- Preserve original state variables ---
-        self.log_count = 0 # Counter for the new rule logger
-        self.log_ticks = 50
-        self.steer_count = 0
-        self.last_steer = 0.0
+        self.name = "PilotoNebuloso"
+        self.author = "Rafael | Kaio"
+        self.version = "1.1"
 
-        # --- Initialize the Fuzzy Control System ---
-        self._setup_fuzzy_system()
+        self.tick = 0
 
-    def _setup_fuzzy_system(self):
-        """
-        Defines and compiles the fuzzy logic controller using scikit-fuzzy.
-        This is called only once when the driver is created.
-        """
-        # --- Antecedents (Inputs) ---
-        track_pos = ctrl.Antecedent(np.arange(-2, 2.1, 0.1), 'track_pos')
-        angle = ctrl.Antecedent(np.arange(-np.pi, np.pi + 0.1, 0.1), 'angle')
-        speed_x = ctrl.Antecedent(np.arange(0, 301, 1), 'speed_x')
+        # Controle
+        self.gear = 1
+        self.steering = 0.0
+        self.accel = 0.0
+        self.brake = 0.0
+        self.last_steer = 0
 
-        # --- Consequents (Outputs) ---
-        steer = ctrl.Consequent(np.arange(-1, 1.01, 0.1), 'steer')
-        accel = ctrl.Consequent(np.arange(0, 1.01, 0.1), 'accel')
+        # Estado interpretado
+        self._last_classification = None
+        self._last_severity = 0.0 # Classificação da 'severidade' da curva
+        self._last_intention = 0.0 # Classificação da 'intenção' aumentar ou diminuir a velocidade
 
-        # --- Membership Functions for Inputs (Widened for stability) ---
-        track_pos['far_right']   = fuzz.trimf(track_pos.universe, [-2.0, -2.0, -0.8])
-        track_pos['right']       = fuzz.trimf(track_pos.universe, [-1.2, -0.5, 0.0])
-        track_pos['center']     = fuzz.trimf(track_pos.universe, [-0.4, 0.0, 0.4])
-        track_pos['left']      = fuzz.trimf(track_pos.universe, [0.0, 0.5, 1.2])
-        track_pos['far_left']  = fuzz.trimf(track_pos.universe, [0.8, 2.0, 2.0])
+        # Parâmetros de largada
+        self.LAUNCH_DIST_THRESHOLD = 5.0
+        self.LAUNCH_MAX_SPEED = 5.0
+        self.LAUNCH_STEER_AGGRESSIVENESS = 0.25
 
-        angle['sharp_left']  = fuzz.trimf(angle.universe, [-np.pi, -1.0, -0.4])
-        angle['left']        = fuzz.trimf(angle.universe, [-0.6, -0.3, 0.0])
-        angle['straight']    = fuzz.trimf(angle.universe, [-0.2, 0.0, 0.2])
-        angle['right']       = fuzz.trimf(angle.universe, [0.0, 0.3, 0.6])
-        angle['sharp_right'] = fuzz.trimf(angle.universe, [0.4, 1.0, np.pi])
+        # Construir modelos fuzzy nos módulos
+        # Cada módulo adiciona atributos ao objeto (ex.: self.turn_classifier, self.accel_brake_ctrl...)
+        track_mod.turn_classifier_model(self)
+        accel_mod.accel_brake_model(self)
+        gear_mod.build_gear_model(self)
+        # steering não precisa de modelo, é calculo direto
 
-        speed_x['slow'] = fuzz.trimf(speed_x.universe, [0, 40, 90])
-        speed_x['medium'] = fuzz.trimf(speed_x.universe, [70, 130, 190])
-        speed_x['fast'] = fuzz.trimf(speed_x.universe, [160, 230, 301])
+    def init(self):
+        self.gear = 1
+        self.accel = 0.0
+        self.brake = 0.0
+        self.steering = 0.0
+        self.tick = 0
 
-        # --- Membership Functions for Outputs ---
-        steer['hard_right']   = fuzz.trimf(steer.universe, [-1.0, -0.8, -0.5])
-        steer['right']        = fuzz.trimf(steer.universe, [-0.6, -0.3, 0.0])
-        steer['zero']        = fuzz.trimf(steer.universe, [-0.1, 0.0, 0.1])
-        steer['left']       = fuzz.trimf(steer.universe, [0.0, 0.3, 0.6])
-        steer['hard_left']  = fuzz.trimf(steer.universe, [0.5, 0.8, 1.0])
+    def is_launch(self, sensors):
+        try:
+            dist = float(sensors.get('distRaced', 9999.0))
+            if dist <= self.LAUNCH_DIST_THRESHOLD:
+                return True
+            speed = float(sensors.get('speedX', 0.0))
+            rpm = float(sensors.get('rpm', 0.0))
+            if speed <= self.LAUNCH_MAX_SPEED and rpm > 1500:
+                return True
+        except Exception as e:
+            logger.debug(f"is_launch heuristics error: {e}")
+        return False
 
-        accel['slow']   = fuzz.trimf(accel.universe, [0.0, 0.2, 0.4])
-        accel['medium'] = fuzz.trimf(accel.universe, [0.3, 0.6, 0.8])
-        accel['fast']   = fuzz.trimf(accel.universe, [0.7, 0.9, 1.0])
+    # Handlers que chamam os módulos Actions
+    def steering_handler(self, sensors, aggressiveness=1.0):
+        try:
+            steer = steering_mod.steering_controller(self, sensors, aggressiveness)
+            self.steering = float(np.clip(steer, -1.0, 1.0))
+        except Exception as e:
+            logger.warning(f"steering_handler error: {e}")
+            # mantém ultimo valor
+            self.steering = float(np.clip(self.steering, -1.0, 1.0))
 
-        # --- Fuzzy Rules (Rewritten for Stability and Cornering) ---
-        rules = [
-            # --- Steering Rules ---
-            # High-priority rules to prevent spinning out
-            ctrl.Rule(angle['sharp_left'], steer['hard_right']),
-            ctrl.Rule(angle['sharp_right'], steer['hard_left']),
+    def accel_brake_handler(self, sensors):
+        try:
+            accel, brake = accel_mod.accel_brake_controller(self, sensors)
+            self.accel = float(np.clip(accel, 0.0, 1.0))
+            self.brake = float(np.clip(brake, 0.0, 1.0))
+            logger.debug(f"[ACCEL] intention={self._last_intention:.2f} -> accel={self.accel:.2f} brake={self.brake:.2f}")
+        except Exception as e:
+            logger.warning(f"accel_brake_handler error: {e}")
+            self.accel = 0.0
+            self.brake = 0.0
 
-            # Combination rules for stable cornering
-            ctrl.Rule(track_pos['left'] & angle['left'], steer['right']),
-            ctrl.Rule(track_pos['right'] & angle['right'], steer['left']),
-            ctrl.Rule(track_pos['center'] & angle['left'], steer['right']),
-            ctrl.Rule(track_pos['center'] & angle['right'], steer['left']),
-            
-            # Basic position correction when angle is straight
-            ctrl.Rule(track_pos['far_left'] & angle['straight'], steer['hard_right']),
-            ctrl.Rule(track_pos['left'] & angle['straight'], steer['right']),
-            ctrl.Rule(track_pos['center'] & angle['straight'], steer['zero']),
-            ctrl.Rule(track_pos['right'] & angle['straight'], steer['left']),
-            ctrl.Rule(track_pos['far_right'] & angle['straight'], steer['hard_left']),
+    def gear_handler(self, sensors):
+        try:
+            # Se for largada, manter marcha 1
+            if self.is_launch(sensors):
+                if self.gear != 1:
+                    self.gear = 1
+                return
+            suggested = gear_mod.gear_controller(self, sensors)
+            # gear_controller já atualiza self.gear internamente, mas retornamos a sugestão
+            if suggested is not None:
+                self.gear = int(suggested)
+        except Exception as e:
+            logger.warning(f"gear_handler error: {e}")
 
-            # --- Acceleration Rules ---
-            # Go fast on straights
-            ctrl.Rule(angle['straight'] & (speed_x['slow'] | speed_x['medium']), accel['fast']),
-            
-            # # Maintain speed on straights if already fast
-            ctrl.Rule(angle['straight'] & speed_x['fast'], accel['medium']),
-            
-            # # Moderate speed in slight turns
-            ctrl.Rule(angle['left'] | angle['right'], accel['medium']),
-            
-            # # Go slow in sharp turns
-            ctrl.Rule(angle['sharp_left'] | angle['sharp_right'], accel['slow']),
+    # Orquestração principal
+    def drive(self, sensors):
+        self.tick += 1
 
-            # # Safety rule: if far off track, slow down
-            ctrl.Rule(track_pos['far_left'] | track_pos['far_right'], accel['slow'])
+        # 1) interpretar pista
+        try:
+            cls, sev = track_mod.turn_classifier_controller(self, sensors)
+            # armazenar
+            self._last_classification = cls
+            self._last_severity = float(sev)
+        except Exception as e:
+            logger.warning(f"track interpretation error: {e}")
+            self._last_classification, self._last_severity = 'straight', 0.0
 
-            # TODO: 
-            # 1) Track recovery rules
-            # 2) Overtaking rules
-        ]
+        # 2) interpretar intenção (baseado em classificação e severidade)
+        try:
+            intention_mod.intention_interpreter(self, sensors)
+            # intention_interpreter guarda em self._last_intention
+        except Exception as e:
+            logger.warning(f"intention interpretation error: {e}")
+            self._last_intention = 0.0
 
-        # --- Create and store the simulation ---
-        fuzzy_control = ctrl.ControlSystem(rules)
-        self.fuzzy_simulation = ctrl.ControlSystemSimulation(fuzzy_control)
+        # 3) actions: accel/brake, gear, steering
+        is_launch = self.is_launch(sensors)
+        aggress = self.LAUNCH_STEER_AGGRESSIVENESS if is_launch else 1.0
 
-    # --- Preserved Logging Methods ---
-    def log_car_state(self, car_state):
-        if self.log_count == 1 and car_state:
-            car_meaningful_state = {
-                'angle': car_state.get('angle'),
-                'damage': car_state.get('damage'),
-                'distRaced': car_state.get('distRaced'),
-                'fuel': car_state.get('fuel'),
-                'gear': car_state.get('gear'),
-                'trackPos': car_state.get('trackPos'),
-                'speedX': car_state.get('speedX')
-            }
-            logger.info(f"Car meaningful state: {car_meaningful_state}")
-
-    def log_car_control(self, car_control):
-        if self.log_count == 1 and car_control:
-            logger.info(f"Car control: {car_control}\n\n")
-
-    def log_active_rules(self):
-        if self.log_count == 1:
-            active_rules = []
-            # Correctly iterate through the control system's rules
-            for rule in self.fuzzy_simulation.ctrl.rules:
-                # The 'antecedent_activation' attribute holds the final float value
-                activation = rule.antecedent_activation
-                if activation > 0.1:  # Only log rules with significant activation
-                    active_rules.append(f"  - Rule: '{rule.label}' -> Activation: {activation:.2f}")
-            
-            if active_rules:
-                logger.info("Active Fuzzy Rules:\n" + "\n".join(active_rules) + "\n")
-
-    # --- Main Drive Method (Internal Logic Changed) ---
-    def drive(self, car_state):
-        self.log_count = (self.log_count % self.log_ticks) + 1
-
-        if not car_state:
-            logger.info("Empty car_state\n")
-            return dict(accel=0, brake=0, gear=1, steer=0)
-
+        self.accel_brake_handler(sensors)
+        self.gear_handler(sensors)
+        self.steering_handler(sensors, aggressiveness=aggress)
         
-        # 1. Provide crisp inputs to the fuzzy system
-        current_speed = car_state.get('speedX', 0.0)
-        track_pos = car_state.get('trackPos', 0.0)
-        angle = car_state.get('angle', 0.0)
+        actual_steer = self.last_steer * 0.5 + self.steering * 0.5
 
-        self.fuzzy_simulation.inputs({
-            'track_pos': track_pos,
-            'angle': angle,
-            'speed_x': current_speed
-        })
+        control = {
+            'accel': float(self.accel),
+            'brake': float(self.brake),
+            'gear': int(self.gear),
+            'steer': float(actual_steer)
+        }
+        
+        self.last_steer = actual_steer
+        
+        return control
 
-        # 2. Compute the fuzzy logic output
-        self.fuzzy_simulation.compute()
-        fuzzy_output = self.fuzzy_simulation.output
-        
-        # Log the active rules for debugging
-        # self.log_active_rules()
-
-        # 3. Use fuzzy outputs and simple rules to build the final control dictionary
-        
-        # Dynamic steering based on speed
-        steer_lock = 0.8 - (current_speed / 400)
-        steer_command = fuzzy_output.get('steer', 0) * max(steer_lock, 0.2)
-        
-        # Smooth the steering to prevent jerky movements
-        steer_command = (self.last_steer * 0.5) + (steer_command * 0.5)
-        self.last_steer = steer_command
-        
-        # Dynamic braking logic
-        brake_command = 0.0
-        if abs(angle) > 0.4 and current_speed > 90: # Brake harder in fast, sharp turns
-            brake_command = 0.3
-        elif abs(track_pos) > 1.0: # Brake if off track
-            brake_command = 0.2
-            
-        car_control = dict(
-            accel = fuzzy_output['accel'],
-            brake = brake_command,
-            gear = 1, # Simple gear logic
-            steer = steer_command,
-        )
-        
-
-        self.log_car_state(car_state)
-        self.log_car_control(car_control)
-
-        return car_control
+    def on_shutdown(self):
+        pass
