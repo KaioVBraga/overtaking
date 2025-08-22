@@ -33,6 +33,7 @@ class TorcsDriver:
         self.steering = 0.0
         self.accel = 0.0
         self.brake = 0.0
+        self.last_steer = 0
 
         # Estado interpretado
         self._last_classification = None
@@ -135,13 +136,18 @@ class TorcsDriver:
         self.accel_brake_handler(sensors)
         self.gear_handler(sensors)
         self.steering_handler(sensors, aggressiveness=aggress)
+        
+        actual_steer = self.last_steer * 0.5 + self.steering * 0.5
 
         control = {
             'accel': float(self.accel),
             'brake': float(self.brake),
             'gear': int(self.gear),
-            'steer': float(self.steering)
+            'steer': float(actual_steer)
         }
+        
+        self.last_steer = actual_steer
+        
         return control
 
     def on_shutdown(self):
