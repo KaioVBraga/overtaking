@@ -16,6 +16,7 @@
 \usepackage{filecontents}
 \usepackage{enumitem}
 \usepackage{longtable} % Para tabelas que podem quebrar a página
+\usepackage{caption}   % Para customizar legendas
 
 %---------------------------------------------------------------------
 % Bibliografia embutida (arquivo .bib gerado automaticamente)
@@ -106,8 +107,8 @@ A discuss\~ao qualitativa indica que a escolha por fun\c{c}\~oes de pertin\^enci
 \subsection{Definição das Variáveis Fuzzy e Funções de Pertinência}
 A seguir, são detalhadas as variáveis linguísticas (antecedentes e consequentes) e suas respectivas funções de pertinência para cada sistema de controle fuzzy. Todas as funções de pertinência são do tipo triangular (\texttt{trimf}), exceto quando especificado.
 
+A Tabela \ref{tab:track_vars} detalha as variáveis utilizadas pelo sistema classificador de curvas, responsável por interpretar a geometria da pista à frente.
 \begin{longtable}{llll}
-\caption{Variáveis do Classificador de Curva (\texttt{track.py})} \label{tab:track_vars} \\
 \toprule
 \textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
 \midrule
@@ -132,10 +133,11 @@ A seguir, são detalhadas as variáveis linguísticas (antecedentes e consequent
 (Consequente) & & & \texttt{long\_turn}: [0.1, 0.3, 0.5] \\
 & & & \texttt{medium}: [0.35, 0.55, 0.75] \\
 & & & \texttt{sharp}: [0.6, 1.0, 1.0] \\
+\caption{\textbf{Variáveis do Classificador de Curva (\texttt{track.py})}} \label{tab:track_vars}
 \end{longtable}
 
+As variáveis que definem a intenção de aceleração e frenagem são apresentadas na Tabela \ref{tab:accel_vars}.
 \begin{longtable}{llll}
-\caption{Variáveis do Controlador de Aceleração/Freio (\texttt{accelaration.py})} \label{tab:accel_vars} \\
 \toprule
 \textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
 \midrule
@@ -162,10 +164,11 @@ A seguir, são detalhadas as variáveis linguísticas (antecedentes e consequent
 & & & \texttt{coast}: [-0.2, 0.0, 0.2] \\
 & & & \texttt{gentle\_acc}: [0.1, 0.4, 0.7] \\
 & & & \texttt{full\_acc}: [0.5, 1.0, 1.0] \\
+\caption{\textbf{Variáveis do Controlador de Aceleração/Freio (\texttt{accelaration.py})}} \label{tab:accel_vars}
 \end{longtable}
 
+A Tabela \ref{tab:steering_vars} descreve as variáveis do controlador de agressividade da direção, que ajusta a suavidade dos movimentos do volante.
 \begin{longtable}{llll}
-\caption{Variáveis do Controlador de Agressividade da Direção (\texttt{steering.py})} \label{tab:steering_vars} \\
 \toprule
 \textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
 \midrule
@@ -193,10 +196,11 @@ A seguir, são detalhadas as variáveis linguísticas (antecedentes e consequent
 \texttt{aggressiveness} & Fator de suavização da direção & [0.1, 1.0] & \texttt{gentle}: [0.1, 0.1, 0.4] \\
 (Consequente) & & & \texttt{normal}: [0.3, 0.5, 0.7] \\
 & & & \texttt{aggressive}: [0.6, 1.0, 1.0] \\
+\caption{\textbf{Variáveis do Controlador de Agressividade da Direção (\texttt{steering.py})}} \label{tab:steering_vars}
 \end{longtable}
 
+Finalmente, a Tabela \ref{tab:gear_vars} mostra a estrutura complexa de variáveis para o sistema de controle de marchas, que considera múltiplos fatores para uma troca eficiente.
 \begin{longtable}{llll}
-\caption{Variáveis do Controlador de Troca de Marchas (\texttt{gear.py})} \label{tab:gear_vars} \\
 \toprule
 \textbf{Variável} & \textbf{Descrição} & \textbf{Universo} & \textbf{Termos Linguísticos e Definições} \\
 \midrule
@@ -234,6 +238,7 @@ A seguir, são detalhadas as variáveis linguísticas (antecedentes e consequent
 \texttt{gear\_adj} & Ajuste de marcha & [-1, 1] & \texttt{down}: [-1, -1, -0.4] \\
 (Consequente) & & & \texttt{keep}: [-0.3, 0, 0.3] \\
 & & & \texttt{up}: [0.4, 1, 1] \\
+\caption{\textbf{Variáveis do Controlador de Troca de Marchas (\texttt{gear.py})}} \label{tab:gear_vars}
 \end{longtable}
 
 \subsection{Análise das Regras da Lógica Fuzzy no Piloto de IA do TORCS}
@@ -337,7 +342,7 @@ Este é o sistema mais complexo, gerenciando as trocas de marcha. A saída é um
         \item \textbf{SE} a intenção é \texttt{accel} \textbf{E} o RPM é \texttt{mid} \textbf{E} a velocidade é \texttt{high} \textbf{E} a marcha atual é \texttt{high}, \textbf{ENTÃO} mantenha (\texttt{keep}).
         \item \textbf{SE} a intenção é \texttt{coast} \textbf{E} o RPM é \texttt{mid} \textbf{E} a velocidade é \texttt{mid}, \textbf{ENTÃO} mantenha (\texttt{keep}).
         \item \textbf{SE} (condição de fallback: a intenção não é frear nem acelerar, o RPM é mid e a severidade da curva não é alta), \textbf{ENTÃO} mantenha (\texttt{keep}).
-    \end{trivlist}
+    \end{itemize}
 \end{itemize}
 
 \section{Conclus\~ao}
